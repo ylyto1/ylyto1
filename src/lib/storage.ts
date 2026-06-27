@@ -24,8 +24,6 @@ const KEYS = {
   leads: "ylyto.leads",
   tracking: "ylyto.tracking",
   prices: "ylyto.prices",
-  auth: "ylyto.adminAuth",
-  adminCreds: "ylyto.adminCreds",
 } as const;
 
 function read<T>(key: string, fallback: T): T {
@@ -98,30 +96,5 @@ export const pricesStore = {
   },
 };
 
-// Auth — replaceable with real backend later.
-export interface AdminCreds {
-  email: string;
-  password: string;
-}
-const DEFAULT_CREDS: AdminCreds = { email: "admin@ylyto.ma", password: "ylyto2026" };
+// Auth is now handled by Lovable Cloud (Supabase). See /auth and /admin routes.
 
-export const authStore = {
-  ensureSeed: () => {
-    if (typeof window === "undefined") return;
-    if (!window.localStorage.getItem(KEYS.adminCreds)) {
-      write(KEYS.adminCreds, DEFAULT_CREDS);
-    }
-  },
-  credentials: (): AdminCreds => read<AdminCreds>(KEYS.adminCreds, DEFAULT_CREDS),
-  updateCredentials: (c: AdminCreds) => write(KEYS.adminCreds, c),
-  isAuthed: (): boolean => read<boolean>(KEYS.auth, false),
-  login: (email: string, password: string): boolean => {
-    const c = authStore.credentials();
-    if (email.trim().toLowerCase() === c.email.toLowerCase() && password === c.password) {
-      write(KEYS.auth, true);
-      return true;
-    }
-    return false;
-  },
-  logout: () => write(KEYS.auth, false),
-};

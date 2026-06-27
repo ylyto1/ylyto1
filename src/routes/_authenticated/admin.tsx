@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { LogOut, Lock, Trash2, RefreshCcw, Save } from "lucide-react";
+import { LogOut, Trash2, RefreshCcw, Save, ShieldAlert } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  authStore,
   leadsStore,
   pricesStore,
   trackingStore,
@@ -11,11 +11,10 @@ import {
   type TrackingConfig,
 } from "@/lib/storage";
 
-export const Route = createFileRoute("/admin")({
+export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { title: "YLYTO — Admin" },
-      { name: "description", content: "Tableau de bord administrateur YLYTO." },
       { name: "robots", content: "noindex,nofollow" },
     ],
   }),
@@ -23,107 +22,85 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<"checking" | "admin" | "forbidden">("checking");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
-    authStore.ensureSeed();
-    setAuthed(authStore.isAuthed());
-    setReady(true);
-  }, []);
+    (async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes.user;
+      if (!user) {
+        navigate({ to: "/auth" });
+        return;
+      }
+      setEmail(user.email ?? "");
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      setStatus(!error && data ? "admin" : "forbidden");
+    })();
+  }, [navigate]);
 
-  if (!ready) return null;
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth" });
+  };
+
+  if (status === "checking") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-gradient-to-br from-cream via-background to-secondary">
+        <p className="text-sm text-muted-foreground">Chargement…</p>
+      </div>
+    );
+  }
+
+  if (status === "forbidden") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-gradient-to-br from-cream via-background to-secondary p-6">
+        <div className="w-full max-w-md rounded-3xl bg-card p-8 text-center shadow-pop">
+          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-destructive/15 text-destructive">
+            <ShieldAlert className="size-5" />
+          </div>
+          <h1 className="mt-4 text-2xl">Accès refusé</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Le compte <strong>{email}</strong> n'a pas le rôle administrateur.
+          </p>
+          <button
+            onClick={signOut}
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold hover:bg-secondary"
+          >
+            <LogOut className="size-4" /> Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream via-background to-secondary">
-      {authed ? <Dashboard onLogout={() => setAuthed(false)} /> : <Login onLogin={() => setAuthed(true)} />}
-    </div>
-  );
-}
-
-function Login({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (authStore.login(email, password)) onLogin();
-    else setError("Identifiants invalides");
-  };
-
-  const creds = authStore.credentials();
-
-  return (
-    <div className="flex min-h-screen items-center justify-center p-6">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm rounded-3xl bg-card p-8 shadow-pop"
-      >
-        <div className="mb-6 flex items-center gap-3">
-          <div className="grid size-12 place-items-center rounded-2xl bg-gradient-pink-sun text-white">
-            <Lock className="size-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl">Admin YLYTO</h1>
-            <p className="text-xs text-muted-foreground">Accès sécurisé</p>
-          </div>
-        </div>
-
-        <label className="mb-3 block">
-          <span className="mb-1 block text-xs font-semibold">Email</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border-2 border-border bg-background px-3 py-2.5 outline-none focus:border-pink"
-            required
-          />
-        </label>
-        <label className="mb-4 block">
-          <span className="mb-1 block text-xs font-semibold">Mot de passe</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border-2 border-border bg-background px-3 py-2.5 outline-none focus:border-pink"
-            required
-          />
-        </label>
-
-        {error && <p className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
-
-        <button className="w-full rounded-full bg-gradient-pink-sun py-2.5 text-sm font-bold text-white shadow-pop hover:scale-[1.01]">
-          Se connecter
-        </button>
-
-        <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">
-          Démo : <strong>{creds.email}</strong> / <strong>{creds.password}</strong>
-        </p>
-      </form>
+      <Dashboard email={email} onSignOut={signOut} />
     </div>
   );
 }
 
 type Tab = "leads" | "tracking" | "prices";
 
-function Dashboard({ onLogout }: { onLogout: () => void }) {
+function Dashboard({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>("leads");
-
-  const logout = () => {
-    authStore.logout();
-    onLogout();
-  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl">YLYTO Admin</h1>
-          <p className="text-sm text-muted-foreground">Pilotez vos prospects, prix et tracking</p>
+          <p className="text-sm text-muted-foreground">Connecté en tant que {email}</p>
         </div>
         <button
-          onClick={logout}
+          onClick={onSignOut}
           className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
         >
           <LogOut className="size-4" /> Déconnexion
@@ -135,7 +112,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           [
             ["leads", "Prospects"],
             ["tracking", "Tracking"],
-            ["prices", "Prix produits"],
+            ["prices", "Produits & Prix"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -244,7 +221,7 @@ function TrackingPanel() {
     <section className="rounded-3xl bg-card p-6 shadow-soft">
       <h2 className="text-xl">Tracking</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Configurez Meta Pixel et Google Analytics. Les scripts seront injectés automatiquement sur le site.
+        Configurez Meta Pixel et Google Analytics. Les scripts sont injectés automatiquement sur le site.
       </p>
 
       <form onSubmit={save} className="mt-5 grid max-w-lg gap-4">
@@ -285,14 +262,14 @@ function PricesPanel() {
     setItems(pricesStore.update(id, patch));
   };
   const reset = () => {
-    if (!confirm("Réinitialiser tous les prix par défaut ?")) return;
+    if (!confirm("Réinitialiser tous les produits par défaut ?")) return;
     setItems(pricesStore.reset());
   };
 
   return (
     <section className="rounded-3xl bg-card p-6 shadow-soft">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl">Prix produits</h2>
+        <h2 className="text-xl">Produits & Prix</h2>
         <button
           onClick={reset}
           className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
@@ -305,13 +282,19 @@ function PricesPanel() {
         {items.map((p) => (
           <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-background p-3">
             <img src={p.image} alt="" className="size-16 shrink-0 rounded-xl object-cover" loading="lazy" />
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 space-y-1.5">
               <input
                 value={p.name}
                 onChange={(e) => update(p.id, { name: e.target.value })}
                 className="w-full rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold outline-none focus:border-border focus:bg-card"
               />
-              <div className="mt-1 flex items-center gap-2">
+              <input
+                value={p.image}
+                onChange={(e) => update(p.id, { image: e.target.value })}
+                placeholder="URL image"
+                className="w-full rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground outline-none focus:border-pink"
+              />
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min={0}
