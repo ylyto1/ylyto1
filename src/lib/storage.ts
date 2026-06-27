@@ -24,8 +24,6 @@ const KEYS = {
   leads: "ylyto.leads",
   tracking: "ylyto.tracking",
   prices: "ylyto.prices",
-  auth: "ylyto.adminAuth",
-  adminCreds: "ylyto.adminCreds",
 } as const;
 
 function read<T>(key: string, fallback: T): T {
