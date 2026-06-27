@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { Plus, Check } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { productsStore, type ProductGroup } from "@/lib/storage";
+import { cartStore } from "@/lib/cart";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export function Gallery() {
