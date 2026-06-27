@@ -34,6 +34,7 @@ function Index() {
     <div className="relative min-h-screen overflow-hidden">
       <BackgroundDecor />
       <LanguageSwitcher />
+      <FloatingOrderButton />
       <main>
         <Hero />
         <Story />
