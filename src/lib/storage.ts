@@ -108,11 +108,21 @@ const defaultProducts: ProductGroup[] = [
 
 export const productsStore = {
   list: (): ProductGroup[] => {
-    const cur = read<ProductGroup[]>(KEYS.products, []);
+    let cur = read<ProductGroup[]>(KEYS.products, []);
     if (cur.length === 0) {
       write(KEYS.products, defaultProducts);
       return defaultProducts;
     }
+    // Migration: rename Produit 2 if it has the old name
+    let changed = false;
+    cur = cur.map(p => {
+      if (p.name === "Produit 2 — Ensemble Rose Câlin") {
+        changed = true;
+        return { ...p, name: "Produit 2 — Robe Fleurie" };
+      }
+      return p;
+    });
+    if (changed) write(KEYS.products, cur);
     return cur;
   },
   save: (items: ProductGroup[]) => {
