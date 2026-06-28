@@ -7,11 +7,11 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // Inside the Lovable sandbox we keep the default Cloudflare/SSR target so the
-// live preview keeps working. For GitHub Pages (and any other static host) we
-// switch nitro to the `static` preset and prerender the landing page so the
-// build emits a real `dist/index.html` that GitHub Pages can serve. Client-side
-// routes (/auth, /admin, ...) are handled via the SPA fallback (404.html copy)
-// configured in .github/workflows/deploy.yml.
+// live preview keeps working. Outside the sandbox (e.g. the GitHub Actions
+// deploy workflow) we switch TanStack Start to full SPA mode and nitro to the
+// `static` preset so the build emits a single `dist/index.html` that GitHub
+// Pages can serve. Client-side deep links work via the SPA fallback that the
+// workflow installs (copy index.html → 404.html).
 const isSandbox =
   process.env.LOVABLE_SANDBOX === "1" || !!process.env.DEV_SERVER__PROJECT_PATH;
 
@@ -21,17 +21,16 @@ const staticNitro = {
     dir: "dist",
     publicDir: "dist",
   },
-  prerender: {
-    crawlLinks: false,
-    routes: ["/"],
-  },
 } as unknown as { preset: string };
 
-export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
+const spaTanstack = {
+  server: { entry: "server" },
+  spa: {
+    enabled: true,
   },
+} as unknown as { server: { entry: string } };
+
+export default defineConfig({
+  tanstackStart: isSandbox ? { server: { entry: "server" } } : spaTanstack,
   ...(isSandbox ? {} : { nitro: staticNitro }),
 });
