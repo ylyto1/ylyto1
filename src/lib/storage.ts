@@ -95,7 +95,7 @@ const defaultProducts: ProductGroup[] = [
   },
   {
     id: "p3",
-    name: "Produit 3 — Tee Petite Star",
+    name: "Produit 3 — Ensemble Fleuri\u00a0",
     price: 199,
     images: [
       "https://cdn.ylyto.ma/ylyto/9.jpeg",
