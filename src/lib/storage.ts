@@ -85,7 +85,7 @@ const defaultProducts: ProductGroup[] = [
   {
     id: "p2",
     name: "Produit 2 — Robe Fleurie",
-    price: 259,
+    price: 179,
     images: [
       "https://cdn.ylyto.ma/ylyto/1.webp",
       "https://cdn.ylyto.ma/ylyto/6.png",
@@ -120,9 +120,9 @@ export const productsStore = {
         changed = true;
         return { ...p, name: "Produit 1 — Robe Rose\u00a0" };
       }
-      if (p.name === "Produit 2 — Ensemble Rose Câlin") {
+      if (p.name === "Produit 2 — Ensemble Rose Câlin" || (p.id === "p2" && p.price === 259)) {
         changed = true;
-        return { ...p, name: "Produit 2 — Robe Fleurie" };
+        return { ...p, name: "Produit 2 — Robe Fleurie", price: 179 };
       }
       if (p.name === "Produit 3 — Tee Petite Star") {
         changed = true;
